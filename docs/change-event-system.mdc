@@ -1,0 +1,217 @@
+---
+description: Guidelines for using the ChangeEvent system in Aware MVP
+globs: *.ts,*.tsx
+alwaysApply: true
+---
+
+# ChangeEvent System Guidelines
+
+## Core Principles
+- Use `ChangeEvent` for all application state change notifications
+- Extend `EventAwareService` for services that need to react to state changes
+- Use `ChangeType` enum for all event type definitions
+- Leverage `ChangeEventUtils` for common event handling patterns
+- Never create direct subscriptions to observables when ChangeEvent can be used instead
+
+## Emitting Change Events
+
+### ✅ Good Examples
+
+```typescript
+// Emitting a change event with proper source attribution
+import { ChangeType, emitChange } from "@src/events/ChangeEvent";
+
+// When user completes an assessment (user-initiated)
+emitChange(ChangeType.USER_ASSESSMENT, assessmentData, 'user_action');
+
+// When system loads data from API
+emitChange(ChangeType.USER_PROFILE, profileData, 'api');
+
+// When system state changes internally
+emitChange(ChangeType.FTUX, { step: 'completed_step' }, 'system');
+```
+
+### ❌ Bad Examples
+
+```typescript
+// DON'T use the deprecated ModelChangeEvent system
+import { ModelChangeType, emitModelChange } from "@src/models/ModelChangeEvent"; // DEPRECATED
+emitModelChange(ModelChangeType.USER_ASSESSMENT, assessmentData);
+
+// DON'T emit events without specifying the source when it's known
+emitChange(ChangeType.USER_ASSESSMENT, assessmentData); // Missing source
+
+// DON'T emit overly generic events when specific ones exist
+emitChange(ChangeType.GENERIC_UPDATE, { type: 'assessment', data: assessmentData });
+```
+
+## Consuming Change Events
+
+### ✅ Good Examples
+
+```typescript
+// Extending EventAwareService properly
+import { EventAwareService } from "./EventAwareService";
+import { ChangeEvent, ChangeType } from "@src/events/ChangeEvent";
+
+@singleton()
+export class ProfileService extends EventAwareService {
+  constructor() {
+    // Only subscribe to events this service actually needs
+    super('ProfileService', [
+      ChangeType.USER_ASSESSMENT,
+      ChangeType.AUTH
+    ]);
+  }
+  
+  // Implement the onStateChange method
+  protected async onStateChange(event: ChangeEvent): Promise<void> {
+    // Use switch statement for clear handling of different event types
+    switch (event.type) {
+      case ChangeType.USER_ASSESSMENT:
+        await this.handleAssessmentChange(event.payload);
+        break;
+      case ChangeType.AUTH:
+        await this.handleAuthChange(event.payload);
+        break;
+    }
+  }
+}
+```
+
+### ❌ Bad Examples
+
+```typescript
+// DON'T extend ModelAwareService (deprecated)
+import { ModelAwareService } from "./ModelAwareService"; // DEPRECATED
+import { ModelChangeEvent, ModelChangeType } from "@src/models/ModelChangeEvent"; // DEPRECATED
+
+@singleton()
+export class ProfileService extends ModelAwareService {
+  constructor() {
+    super('ProfileService', [ModelChangeType.USER_ASSESSMENT]);
+  }
+  
+  // DON'T implement onModelChange (deprecated)
+  protected async onModelChange(event: ModelChangeEvent): Promise<void> {
+    // ...
+  }
+}
+
+// DON'T subscribe to every possible event type
+export class OverSubscribedService extends EventAwareService {
+  constructor() {
+    // Too many event types - this service likely doesn't need all of these
+    super('OverSubscribedService', [
+      ChangeType.USER_ASSESSMENT,
+      ChangeType.AUTH,
+      ChangeType.FTUX,
+      ChangeType.USER_PROFILE,
+      ChangeType.MOTIVATIONS,
+      // ... many more
+    ]);
+  }
+}
+```
+
+## Using ChangeEventUtils
+
+### ✅ Good Examples
+
+```typescript
+import { ChangeEventUtils } from "@src/utils/ChangeEventUtils";
+import { ChangeEvent, ChangeType } from "@src/events/ChangeEvent";
+
+protected async onStateChange(event: ChangeEvent): Promise<void> {
+  // Check if event is one of multiple types
+  if (ChangeEventUtils.isChangeTypeOneOf(event, [ChangeType.AUTH, ChangeType.USER_PROFILE])) {
+    await this.handleUserDataChange(event.payload);
+  }
+  
+  // Check if event is exactly a specific type
+  if (ChangeEventUtils.isChangeTypeExactly(event, ChangeType.FTUX)) {
+    await this.handleFtuxChange(event.payload);
+  }
+  
+  // Check event source for user-initiated actions
+  if (ChangeEventUtils.isChangeSourceOneOf(event, ['user_action'])) {
+    this.trackUserActivity(event);
+  }
+}
+```
+
+### ❌ Bad Examples
+
+```typescript
+// DON'T use direct type comparisons when ChangeEventUtils provides cleaner alternatives
+protected async onStateChange(event: ChangeEvent): Promise<void> {
+  // Avoid manual type checking like this
+  if (event.type === ChangeType.AUTH || event.type === ChangeType.USER_PROFILE) {
+    // ...
+  }
+  
+  // DON'T ignore the source property when it's relevant
+  if (event.type === ChangeType.USER_ASSESSMENT) {
+    // This will handle all assessment changes regardless of source
+    // Better to check if it's user-initiated when that matters
+  }
+}
+```
+
+## Integration with GenerateDataService
+
+### ✅ Good Examples
+
+```typescript
+// Register actions with GenerateDataService
+constructor() {
+  super('MyService', [ChangeType.AUTH, ChangeType.USER_ASSESSMENT]);
+  
+  // Register actions for specific change types
+  this._generateDataService.registerActions(ChangeType.AUTH, [
+    new FetchUserDataAction(this)
+  ]);
+  
+  this._generateDataService.registerActions(ChangeType.USER_ASSESSMENT, [
+    new GenerateUserInsightsAction(this)
+  ]);
+}
+```
+
+### ❌ Bad Examples
+
+```typescript
+// DON'T use ModelChangeType with GenerateDataService
+constructor() {
+  super('MyService', [ChangeType.AUTH]);
+  
+  // WRONG: Using ModelChangeType with GenerateDataService
+  this._generateDataService.registerActions(ModelChangeType.AUTH, [ // DEPRECATED
+    new FetchUserDataAction(this)
+  ]);
+  
+  // DON'T register the same action for every possible event type
+  const allTypes = Object.values(ChangeType);
+  this._generateDataService.registerActions(allTypes, [
+    new DoEverythingAction(this) // This is too broad
+  ]);
+}
+```
+
+## Best Practices
+
+1. **Be Specific**: Only subscribe to event types your service actually needs to handle.
+
+2. **Use Proper Source Attribution**: Always specify the source of the event ('user_action', 'system', 'api').
+
+3. **Keep Handlers Focused**: Each event handler should have a single responsibility.
+
+4. **Leverage ChangeEventUtils**: Use the utility functions to simplify your event handling logic.
+
+5. **Avoid Side Effects**: Event handlers should avoid triggering additional events when possible to prevent cascading updates.
+
+6. **Implement onStateChange**: Always implement the abstract onStateChange method when extending EventAwareService.
+
+7. **Clean Initialization**: Register all event handlers during service initialization.
+
+8. **Proper Error Handling**: Use Result types for error handling in event handlers.

@@ -1,0 +1,113 @@
+import "reflect-metadata";
+import { get, isFunction, memoize, set } from "lodash";
+import {
+    container,
+    DependencyContainer,
+    InjectionToken,
+    Lifecycle,
+} from "tsyringe";
+import constructor from "tsyringe/dist/typings/types/constructor";
+import { GlobalContextService } from "./GlobalContextService";
+
+// TODO: deal with server vs client side context here
+
+function getContainer(): DependencyContainer {
+    let globalContainer = GlobalContextService.FindInGlobal(
+        "__RK_Global_Container_Aware"
+    ) as DependencyContainer;
+    if (!globalContainer) {
+        globalContainer = container;
+        GlobalContextService.PutInGlobal("__RK_Global_Container", globalContainer);
+    }
+    return globalContainer;
+}
+
+const globalContainer = memoize(getContainer);
+
+const _container = globalContainer();
+
+function debugPrintContainer(): void {
+    const map = get(_container, "_registry._registryMap") as unknown as Map<any, any>;
+    map.forEach((value) => {
+        console.log("obj: ", get(value[0], "instance"));
+    });
+}
+
+if (!GlobalContextService.Get().isSSR && typeof window !== "undefined")
+    set(window, "__RK_printContainer", debugPrintContainer);
+
+export class DependencyService {
+    static registerValue<T extends unknown>(
+        token: InjectionToken<T>,
+        value: T
+    ): DependencyContainer {
+        return _container.register(token, { useValue: value });
+    }
+
+    static unregister(token: InjectionToken<any>): DependencyContainer {
+        _container.register(token, { useValue: null });
+        return _container;
+    }
+
+    static registerSingleton<T extends unknown>(
+        token: InjectionToken<T>
+    ): DependencyContainer {
+        if (!isFunction(token)) throw new Error(`{token} must be a function`);
+        return _container.registerSingleton(token as unknown as constructor<T>);
+    }
+
+    static registerAsSingleton<T extends unknown>(
+        from: InjectionToken<T>,
+        to: InjectionToken<T>
+    ): DependencyService {
+        return _container.registerSingleton(from, to);
+    }
+
+    static registerClass<T extends unknown>(
+        token: constructor<T>
+    ): DependencyContainer {
+        return _container.register(
+            token,
+            { useClass: token },
+            { lifecycle: Lifecycle.Transient }
+        );
+    }
+
+    static resolve<T extends unknown>(token: InjectionToken<T>): T {
+        const t = _container.resolve(token);
+        return t;
+    }
+
+    static resolveSafe<T extends unknown>(token: InjectionToken<T>): T | null {
+        try {
+            if (_container.isRegistered(token)) {
+                return DependencyService.resolve(token);
+            }
+            if (isFunction(token)) {
+                const rVal = DependencyService.resolve(token);
+                return rVal;
+            }
+        } catch (e) {
+            console.error(
+                `~~~ Error resolving: ${token.toString().substring(0, 50)}`,
+                e
+            );
+        }
+
+        return null;
+    }
+
+    static container(): DependencyContainer {
+        return _container;
+    }
+
+    static isRegistered<T extends unknown>(token: InjectionToken<T>): boolean {
+        return _container.isRegistered(token);
+    }
+}
+
+export const resolveDependency = <T extends unknown>(
+    token: InjectionToken<T>
+): T | null => {
+    return DependencyService.resolveSafe(token);
+};

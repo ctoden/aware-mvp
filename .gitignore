@@ -1,0 +1,69 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+.idea/
+
+# GitHub auth file
+.github-auth
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+.env
+
+# typescript
+*.tsbuildinfo
+.aider*
+/.aider.tags.cache.v3/
+/.coding-aider-plans/
+
+#aider
+.aider*
+
+android/
+ios/
+playwright-report/index.html
+test-results/
+
+# Browser-use tests
+browser-use-tests/screenshots/
+browser-use-tests/logs/
+browser-use-tests/test_data/
+browser-use-tests/browser-use-tests/
+
+# Vim swap files
+*.swp
+*.swo
+
+**/.claude/settings.local.json
+
+# Planning files
+@planning/completed/
+
+planning/completed/
