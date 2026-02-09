@@ -1,0 +1,13 @@
+[build]
+dockerfilePath = "Dockerfile"
+
+[build.args]
+EXPO_PUBLIC_SUPABASE_URL = "${{EXPO_PUBLIC_SUPABASE_URL}}"
+EXPO_PUBLIC_SUPABASE_ANON_KEY = "${{EXPO_PUBLIC_SUPABASE_ANON_KEY}}"
+EXPO_PUBLIC_MISTRAL_API_KEY = "${{EXPO_PUBLIC_MISTRAL_API_KEY}}"
+EXPO_PUBLIC_OPENAI_API_KEY = "${{EXPO_PUBLIC_OPENAI_API_KEY}}"
+
+[deploy]
+healthcheckPath = "/"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
