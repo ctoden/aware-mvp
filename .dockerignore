@@ -1,0 +1,9 @@
+node_modules
+dist
+.git
+.env.local
+Docker.dmg
+ios
+android
+browser-use-tests
+*.dmg

@@ -19,7 +19,7 @@ ENV EXPO_PUBLIC_OPENAI_API_KEY=$EXPO_PUBLIC_OPENAI_API_KEY
 COPY package.json package-lock.json* yarn.lock* ./
 
 # Install dependencies
-RUN npm install
+RUN npm ci || (npm cache clean --force && npm install)
 
 # Copy source code
 COPY . .
