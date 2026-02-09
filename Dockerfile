@@ -1,5 +1,5 @@
 # Stage 1: Build the Expo web app
-FROM node:20-alpine AS builder
+FROM node:22-slim AS builder
 
 WORKDIR /app
 
@@ -15,11 +15,14 @@ ENV EXPO_PUBLIC_SUPABASE_ANON_KEY=$EXPO_PUBLIC_SUPABASE_ANON_KEY
 ENV EXPO_PUBLIC_MISTRAL_API_KEY=$EXPO_PUBLIC_MISTRAL_API_KEY
 ENV EXPO_PUBLIC_OPENAI_API_KEY=$EXPO_PUBLIC_OPENAI_API_KEY
 
-# Copy package files
-COPY package.json package-lock.json* yarn.lock* ./
+# Install build tools needed for native modules
+RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
-RUN npm ci || (npm cache clean --force && npm install)
+# Copy package files
+COPY package.json package-lock.json* ./
+
+# Install dependencies with clean cache
+RUN npm cache clean --force && npm install --no-optional
 
 # Copy source code
 COPY . .
@@ -34,7 +37,7 @@ RUN echo "EXPO_PUBLIC_SUPABASE_URL=$EXPO_PUBLIC_SUPABASE_URL" > .env.local && \
 RUN npx expo export --platform web
 
 # Stage 2: Serve with a lightweight static server
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 
