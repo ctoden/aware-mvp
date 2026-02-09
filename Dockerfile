@@ -24,6 +24,12 @@ RUN npm install
 # Copy source code
 COPY . .
 
+# Create .env.local from build args so app.config.js (dotenv) can read them
+RUN echo "EXPO_PUBLIC_SUPABASE_URL=$EXPO_PUBLIC_SUPABASE_URL" > .env.local && \
+    echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=$EXPO_PUBLIC_SUPABASE_ANON_KEY" >> .env.local && \
+    echo "EXPO_PUBLIC_MISTRAL_API_KEY=$EXPO_PUBLIC_MISTRAL_API_KEY" >> .env.local && \
+    echo "EXPO_PUBLIC_OPENAI_API_KEY=$EXPO_PUBLIC_OPENAI_API_KEY" >> .env.local
+
 # Build the web export
 RUN npx expo export --platform web
 
