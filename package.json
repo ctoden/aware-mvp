@@ -107,5 +107,8 @@
     "supabase": "^1.145.4",
     "typescript": "^5.7.2"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "react-server-dom-webpack": "19.0.2"
+  }
 }
